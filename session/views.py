@@ -67,8 +67,8 @@ def end_session(request, *args, **kwargs):
         if not records.exists():
             return HttpResponseBadRequest("No records found")
 
-        late_mid = [record.student_id for record in records if record.status == 'AB']
-        absent_mid = [record.student_id for record in records if record.status == 'L']
+        late_mid = [record.student_id for record in records if record.status == 'L']
+        absent_mid = [record.student_id for record in records if record.status == 'AB']
 
         l_students = Student.objects.filter(pk__in=late_mid)
         ab_students = Student.objects.filter(pk__in=absent_mid)
