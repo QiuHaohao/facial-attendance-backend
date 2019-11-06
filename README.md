@@ -24,8 +24,17 @@ To create super users for `django`
 docker-compose run web python manage.py createsuperuser
 ```
 
-The admin page will be accessble at `http://localhost:8000/admin`.
+The admin page will be accessble at `http://{DJANGO_SERVER_URL}/admin`. For example, if you are running the server locally at port 8000, then `http://localhost:8000/admin`
 
+### Creating new users
+
+New users can be created from the django admin page:
+  1. Visit the django admin page at `http://localhost:8000/admin`,
+  2. Login with the super user created in the previous section,
+  3. Click `➕Add` in `Users` under `AUTHENTICATION AND AUTHORIZATION`
+  4. Type in the credentials and click save.
+  5. You will be able to use the user created to login from the frontend
+ 
 ## Test
 
 run tests
