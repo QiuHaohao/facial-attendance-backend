@@ -17,8 +17,8 @@ class SignUpViewTest(TestCase):
         self.assertTrue(User.objects.filter(username=username).exists())
 
         response = self.client.post(reverse('signup'),
-                         {'username': username, 'password': password},
-                         content_type="application/json")
+                                    {'username': username, 'password': password},
+                                    content_type="application/json")
         self.assertEqual(response.status_code, 400)
 
 
