@@ -6,6 +6,6 @@ urlpatterns = [
     path('token/', obtain_jwt_token, name='token'),
     path('refresh/', refresh_jwt_token, name='token_refresh'),
     path('verify/', verify_jwt_token, name='token_verify'),
-    path('signup/', SignUpView.as_view(), name='users'),
+    path('signup/', SignUpView.as_view(), name='signup'),
     path('current/', current_user, name='current_user'),
 ]

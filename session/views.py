@@ -1,4 +1,3 @@
-import os
 import json
 import numpy as np
 import pickle
@@ -6,16 +5,15 @@ import base64
 
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
-from .forms import ImageForm
 from rest_framework.exceptions import ParseError
 from PIL import Image
 import face_recognition
 from rest_framework import status, views, parsers, exceptions
 from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser, FormParser, FileUploadParser, JSONParser
+from rest_framework.parsers import FormParser, JSONParser
 from rest_framework.decorators import api_view, parser_classes
 from .session_manager import handle_recognition_request, read_image_from_request
-from labs.models import Student, Session, Lab, Attendance
+from labs.models import Student, Session, Attendance
 from labs.serializers import AttendanceSerializer
 from .email_service import EmailService
 
@@ -23,32 +21,6 @@ IMG_PATH = 'images'
 counter = 0
 
 face_data = {}
-
-
-@api_view(['POST'])
-@parser_classes([MultiPartParser, FormParser])
-def count_faces(request):
-    if 'file' not in request.data:
-        raise ParseError("Empty Content")
-
-    f = request.data['file']
-    # verify image
-    im = Image.open(f)
-    im.verify()
-
-    # open image
-    im = Image.open(f)
-    # if not os.path.exists(IMG_PATH):
-    #     os.mkdir(IMG_PATH)
-    # im.save(os.path.join(IMG_PATH, 'photo.jpg'))
-
-    im = im.convert('RGB')
-    image = np.array(im)
-    n_faces = len(face_recognition.face_locations(image))
-
-    global counter
-    counter += 1
-    return Response(n_faces, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
@@ -115,7 +87,7 @@ def post_attendace_img(request, *args, **kwargs):
     face_locations = face_recognition.face_locations(im)
     face_encodings = face_recognition.face_encodings(im, face_locations)
 
-    global face_data
+    global face_data    # cache student facial encoding data
     if sid not in face_data:
         session = Session.objects.get(pk=sid)
         students = session.lab.students.all()
@@ -127,11 +99,13 @@ def post_attendace_img(request, *args, **kwargs):
             'all_students_matric': [student.mid for student in students]
         }
 
+    # facial data for students who take this lab
     known_face_encodings = face_data[sid]['known_face_encodings']
     known_face_matric = face_data[sid]['known_face_matric']
     all_students_matric = face_data[sid]['all_students_matric']
 
-    attended_matric = []
+    # match student's face encoding with the receiving image
+    attended_matric = []        # list of the matrics for students who attend this session
     for face_encoding in face_encodings:
         matches = face_recognition.compare_faces(known_face_encodings, face_encoding, tolerance=0.4)
         name = 'Unknown'
@@ -142,8 +116,9 @@ def post_attendace_img(request, *args, **kwargs):
             name = known_face_matric[best_match_index]
             attended_matric.append(name)
 
-    status = [True if matric in attended_matric else False for matric in all_students_matric]
-    student_status = dict((zip(all_students_matric, status)))
+    # status for each student: True for matched, False for unmatched
+    attend_status = [True if matric in attended_matric else False for matric in all_students_matric]
+    student_status = dict((zip(all_students_matric, attend_status)))
 
     prev_records = Attendance.objects.filter(session=sid)
     if not prev_records.exists():
@@ -188,7 +163,7 @@ class StudentFaceEncodingView(views.APIView):
     def post(self, request, *args, **kwargs):
         if 'image' not in request.data:
             raise exceptions.ParseError("No image found")
-        if 'matric' not in request.data:
+        if 'mid' not in request.data:
             raise exceptions.ParseError("No matric found")
 
         f = request.data['image']
@@ -205,12 +180,12 @@ class StudentFaceEncodingView(views.APIView):
         face_encoding_bytes = pickle.dumps(face_encoding)
         face_encoding_base64 = base64.b64encode(face_encoding_bytes)
 
-        sid = request.data['matric']
+        mid = request.data['mid']
         try:
-            student = Student.objects.get(pk=sid)
+            student = Student.objects.get(pk=mid)
             student.face_encoding = face_encoding_base64
             student.save()
         except Exception:
             return Response('Error occured', status=status.HTTP_400_BAD_REQUEST)
 
-        return Response(sid, status=status.HTTP_200_OK)
+        return Response(mid, status=status.HTTP_200_OK)
